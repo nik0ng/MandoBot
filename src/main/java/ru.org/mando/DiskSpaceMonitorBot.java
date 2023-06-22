@@ -91,10 +91,11 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
         List<KeyboardButton> keyboardButtonsRow = new ArrayList<>();
         keyboardButtonsRow.add(new KeyboardButton(Command.STORAGE_IN_BACK_BACK));
-        keyboardButtonsRow.add(new KeyboardButton(Command.HELP));
+        keyboardButtonsRow.add(new KeyboardButton(Command.FILESTORAGE));
+
 
         List<KeyboardButton> keyboardButtons = new ArrayList<>();
-        keyboardButtons.add(new KeyboardButton(Command.FILESTORAGE));
+        keyboardButtons.add(new KeyboardButton(Command.HELP));
         keyboardButtons.add(new KeyboardButton("/command2"));
         keyboardButtons.add(new KeyboardButton("/command3"));
         keyboardButtons.add(new KeyboardButton("/command4"));
