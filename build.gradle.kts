@@ -4,14 +4,24 @@ plugins {
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     kotlin("jvm") version "1.5.10"
 
+    application
+
 }
+
+application {
+    mainClassName = "ru.org.mando.DiskSpaceMonitorBot"
+}
+
+
 
 group = "org.example"
 version = "1.0-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_17
 
 repositories {
-    mavenCentral()
+    jcenter()
+
+//    mavenCentral()
 }
 
 dependencies {
@@ -38,5 +48,12 @@ tasks.getByName<Test>("test") {
 }
 
 springBoot {
-    mainClass.set("com.example.TechSupportBotApplication")
+    mainClass.set("ru.org.mando")
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = application.mainClassName
+    }
+    from(sourceSets.main.get().output.classesDirs.toList())
 }

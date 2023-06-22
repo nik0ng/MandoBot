@@ -3,6 +3,8 @@ package ru.org.mando;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -12,21 +14,26 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMar
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import ru.org.mando.classes.Command;
+import ru.org.mando.classes.CommandEnum;
 import ru.org.mando.classes.Config;
 import ru.org.mando.classes.Path;
 import ru.org.mando.services.CalculatorService;
+import ru.org.mando.services.KeyBoardService;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @SpringBootApplication
 @EnableScheduling
+@EnableAsync
 public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
     @Autowired
     CalculatorService calculatorService;
+    @Autowired
+    KeyBoardService keyBoardService;
 
     public static void main(String[] args) {
         SpringApplication.run(DiskSpaceMonitorBot.class, args);
@@ -37,35 +44,43 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String command = update.getMessage().getText();
 
-            if (Command.STORAGE_IN_BACK_BACK.equals(command)) {
+            if (CommandEnum.STORAGE_IN_BACK_BACK.getId().equals(command)) {
                 checkDiskSpaceAndSendBack(Config.getUsersToSendNotification(), Path.getBackBack(), command);
-            }
-            if (Command.FILESTORAGE.equals(command)) {
+            }else if (CommandEnum.FILESTORAGE.getId().equals(command)) {
                 checkDiskSpaceAndSendBack(Config.getUsersToSendNotification(), Path.getFilestorage(), command);
-            } else if (Command.BACKUP_FILESTORAGE.equals(command)) {
+            } else if (CommandEnum.BACKUP_FILESTORAGE.getId().equals(command)) {
                 checkDiskSpaceAndSendBack(Config.getUsersToSendNotification(), Path.getBackupFilestorage(), command);
-            } else if (Command.HELP.equals(command)) {
+            } else if (CommandEnum.HELP.getId().equals(command) || CommandEnum.BACK.getId().equals(command)) {
                 sendCommandHints(update.getMessage().getChatId());
+            }else if (CommandEnum.WORK_CRON.getId().equals(command)){
+                initCronCommands(update.getMessage().getChatId());
+            }else if (CommandEnum.START_CRON.getId().equals(command)){
+                Config.setIsWork(true);
+            }else if (CommandEnum.STOP_CRON.getId().equals(command)){
+                Config.setIsWork(false);
             }
         }
     }
 
     /**
-     * check storage in backback in cron
+     * check storages by cron
      */
-    @Scheduled(fixedDelay = 4 * 60 * 60 * 1000) // Проверка каждые 4 часа (время задается в миллисекундах)
+    @Async
+    @Scheduled(fixedRate = 60000) // Планирование выполнения каждую минуту
     public void checkBackBackDiskSpace() {
-        String backback = makeMessageScheduler(Path.getBackBack());
-        if (backback != null) {
-            sendMessageToTelegram(backback, Config.getUsersToSendNotification());
-        }
-        String fileStore = makeMessageScheduler(Path.getFilestorage());
-        if (fileStore != null) {
-            sendMessageToTelegram(fileStore, Config.getUsersToSendNotification());
-        }
-        String backupFileStore = makeMessageScheduler(Path.getBackupFilestorage());
-        if (backupFileStore != null) {
-            sendMessageToTelegram(backupFileStore, Config.getUsersToSendNotification());
+        if(Config.isWork) {
+            String backback = makeMessageScheduler(Path.getBackBack());
+            if (backback != null) {
+                sendMessageToTelegram(backback, Config.getUsersToSendNotification());
+            }
+            String fileStore = makeMessageScheduler(Path.getFilestorage());
+            if (fileStore != null) {
+                sendMessageToTelegram(fileStore, Config.getUsersToSendNotification());
+            }
+            String backupFileStore = makeMessageScheduler(Path.getBackupFilestorage());
+            if (backupFileStore != null) {
+                sendMessageToTelegram(backupFileStore, Config.getUsersToSendNotification());
+            }
         }
     }
 
@@ -99,47 +114,57 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
         if (result != null) {
             sendMessageToTelegram(result, chatIds);
         } else {
-            sendMessageToTelegram(String.format("Storage in %s is OKey! And you must not forget about my existence and always wear a helmet!",
+            sendMessageToTelegram(String.format("%s is OKey! And you must not forget about my existence and always wear a helmet!",
                     command), chatIds);
         }
 
+    }
+
+    public static final List<CommandEnum> CRON_BUTTON_LIST = Arrays.asList(CommandEnum.START_CRON, CommandEnum.STOP_CRON, CommandEnum.BACK);
+    public void initCronCommands(Long chatId){
+        // Создание клавиатуры с кнопкой для подсказок команд
+        ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
+        List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(CRON_BUTTON_LIST);
+
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+        KeyboardRow keyboardRow = keyBoardService.initKeyboardRow(keyboardButtonsRow);
+        keyboardRows.add(keyboardRow);
+
+        replyKeyboardMarkup.setKeyboard(keyboardRows);
+
+        executeSendMessage(chatId, "Choice cron command", replyKeyboardMarkup);
 
     }
 
+    public static final List<CommandEnum> CHECK_STORAGE_COMMAND = Arrays.asList(CommandEnum.STORAGE_IN_BACK_BACK, CommandEnum.FILESTORAGE,
+            CommandEnum.BACKUP_FILESTORAGE);
+    public static final List<CommandEnum> ADDITIONAL_COMMAND = Arrays.asList(CommandEnum.HELP, CommandEnum.WORK_CRON);
+
     public void sendCommandHints(Long chatId) {
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(String.valueOf(chatId));
-        sendMessage.setText("Available commands:");
 
         // Создание клавиатуры с кнопкой для подсказок команд
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        replyKeyboardMarkup.setSelective(true);
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setOneTimeKeyboard(false);
+        ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
 
-        List<KeyboardButton> keyboardButtonsRow = new ArrayList<>();
-        keyboardButtonsRow.add(new KeyboardButton(Command.STORAGE_IN_BACK_BACK));
-        keyboardButtonsRow.add(new KeyboardButton(Command.FILESTORAGE));
-        keyboardButtonsRow.add(new KeyboardButton(Command.BACKUP_FILESTORAGE));
-
-        List<KeyboardButton> keyboardButtons = new ArrayList<>();
-        keyboardButtons.add(new KeyboardButton(Command.HELP));
-        keyboardButtons.add(new KeyboardButton("/command2"));
-        keyboardButtons.add(new KeyboardButton("/command3"));
-        keyboardButtons.add(new KeyboardButton("/command4"));
+        List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(CHECK_STORAGE_COMMAND);
+        List<KeyboardButton> keyboardButtons = keyBoardService.initKeyboardButtonsRow(ADDITIONAL_COMMAND);
 
         List<KeyboardRow> keyboardRows = new ArrayList<>();
-        KeyboardRow keyboardRow = new KeyboardRow();
-        keyboardRow.addAll(keyboardButtonsRow);
+        KeyboardRow keyboardRow = keyBoardService.initKeyboardRow(keyboardButtonsRow);
         keyboardRows.add(keyboardRow);
-
-        KeyboardRow commandsRow = new KeyboardRow();
-        commandsRow.addAll(keyboardButtons);
+        KeyboardRow commandsRow = keyBoardService.initKeyboardRow(keyboardButtons);
         keyboardRows.add(commandsRow);
 
         replyKeyboardMarkup.setKeyboard(keyboardRows);
-        sendMessage.setReplyMarkup(replyKeyboardMarkup);
 
+        executeSendMessage(chatId, "Available commands:", replyKeyboardMarkup);
+    }
+
+    private void executeSendMessage(Long chatId, String text, ReplyKeyboardMarkup replyKeyboardMarkup){
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(String.valueOf(chatId));
+        sendMessage.setText(text);
+
+        sendMessage.setReplyMarkup(replyKeyboardMarkup);
         try {
             execute(sendMessage);
         } catch (TelegramApiException e) {
