@@ -117,7 +117,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
         if (result != null) {
             sendMessageToTelegram(result, chatIds);
         } else {
-            sendMessageToTelegram(String.format("%s  ✅", command), chatIds);
+            sendMessageToTelegram(String.format("%s  ✅", path), chatIds);
         }
 
     }
