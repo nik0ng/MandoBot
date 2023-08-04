@@ -4,9 +4,10 @@ package ru.org.mando.classes;
 import javax.annotation.Nullable;
 
 public enum CommandEnum implements EnumClass<String>{
-    STORAGE_IN_BACK_BACK("Storage in BackBack"),
-    FILESTORAGE("Storage in FileStorage"),
-    BACKUP_FILESTORAGE("Storage in Backup_FileStorage"),
+    STORAGE_IN_BACK_BACK("BackBack"),
+    FILESTORAGE("FileStorage"),
+    BACKUP_FILESTORAGE("Backup_FileStorage"),
+    ALL_STORAGE("ALL"),
     WORK_CRON("Cron work"),
     STOP_CRON("⛔️ STOP cron"),
     START_CRON("✅ START cron"),

@@ -50,6 +50,10 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
                 checkDiskSpaceAndSendBack(Config.getUsersToSendNotification(), Path.getFilestorage(), command);
             } else if (CommandEnum.BACKUP_FILESTORAGE.getId().equals(command)) {
                 checkDiskSpaceAndSendBack(Config.getUsersToSendNotification(), Path.getBackupFilestorage(), command);
+            } else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
+                checkDiskSpaceAndSendBack(Config.getUsersToSendNotification(), Path.getBackBack(), command);
+                checkDiskSpaceAndSendBack(Config.getUsersToSendNotification(), Path.getFilestorage(), command);
+                checkDiskSpaceAndSendBack(Config.getUsersToSendNotification(), Path.getBackupFilestorage(), command);
             } else if (CommandEnum.HELP.getId().equals(command) || CommandEnum.BACK.getId().equals(command)) {
                 sendCommandHints(update.getMessage().getChatId());
             }else if (CommandEnum.WORK_CRON.getId().equals(command)){
@@ -92,11 +96,10 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
     private String checkLimitStorageAndMakeMessage(Double usedPercentage, String command) {
         String result = null;
-        if (usedPercentage.equals("NaN") && !calculatorService.isEnoughSpace(usedPercentage)) {
+        if (usedPercentage.isNaN() || !calculatorService.isEnoughSpace(usedPercentage)) {
             result = String.format("‼️‼️‼️Warning‼️‼️‼️\n %s Disk space usage is %.2f%%", command, usedPercentage);
         }
         return result;
-
     }
 
 
@@ -114,8 +117,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
         if (result != null) {
             sendMessageToTelegram(result, chatIds);
         } else {
-            sendMessageToTelegram(String.format("%s is OKey! And you must not forget about my existence and always wear a helmet!",
-                    command), chatIds);
+            sendMessageToTelegram(String.format("%s  ✅", command), chatIds);
         }
 
     }
@@ -137,7 +139,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     }
 
     public static final List<CommandEnum> CHECK_STORAGE_COMMAND = Arrays.asList(CommandEnum.STORAGE_IN_BACK_BACK, CommandEnum.FILESTORAGE,
-            CommandEnum.BACKUP_FILESTORAGE);
+            CommandEnum.BACKUP_FILESTORAGE, CommandEnum.ALL_STORAGE);
     public static final List<CommandEnum> ADDITIONAL_COMMAND = Arrays.asList(CommandEnum.HELP, CommandEnum.WORK_CRON);
 
     public void sendCommandHints(Long chatId) {
