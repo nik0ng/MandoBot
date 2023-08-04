@@ -109,7 +109,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
         Double usedPercentage = calculatorService.countBusyStoragePercent(path);
 
         String message = String.format("Disk (%s) space usage: %.2f%%\nTotal space: %.2f GB\nFree space: %.2f GB",
-                command, usedPercentage, file.getTotalSpace() / (1024.0 * 1024.0 * 1024.0), file.getFreeSpace() / (1024.0 * 1024.0 * 1024.0));
+                path, usedPercentage, file.getTotalSpace() / (1024.0 * 1024.0 * 1024.0), file.getFreeSpace() / (1024.0 * 1024.0 * 1024.0));
 
         sendMessageToTelegram(message, chatIds);
         String result = null;
