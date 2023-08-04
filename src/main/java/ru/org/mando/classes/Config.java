@@ -10,7 +10,7 @@ public class Config {
     public static Boolean isWork = true;
     private static final String BOT_TOKEN = "6201461209:AAFbCcYZhQgK_aX0n7CfQhUEOmyBKnXidQM";
     private static final long NIK0NG = 567461715;
-    private static final double THRESHOLD = 85.0;
+    private static final double THRESHOLD = 90.0;
     //test
 //    private static final double THRESHOLD = 50.0;
 
