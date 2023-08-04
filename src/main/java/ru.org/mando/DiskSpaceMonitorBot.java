@@ -94,10 +94,10 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     }
 
 
-    private String checkLimitStorageAndMakeMessage(Double usedPercentage, String command) {
+    private String checkLimitStorageAndMakeMessage(Double usedPercentage, String path) {
         String result = null;
         if (usedPercentage.isNaN() || !calculatorService.isEnoughSpace(usedPercentage)) {
-            result = String.format("‼️‼️‼️Warning‼️‼️‼️\n %s Disk space usage is %.2f%%", command, usedPercentage);
+            result = String.format("‼️‼️‼️Warning‼️‼️‼️\n %s Disk space usage is %.2f%%", path, usedPercentage);
         }
         return result;
     }
@@ -113,7 +113,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
         sendMessageToTelegram(message, chatIds);
         String result = null;
-        result = checkLimitStorageAndMakeMessage(usedPercentage, command);
+        result = checkLimitStorageAndMakeMessage(usedPercentage, path);
         if (result != null) {
             sendMessageToTelegram(result, chatIds);
         } else {
