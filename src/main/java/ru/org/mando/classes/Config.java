@@ -7,7 +7,7 @@ import java.util.List;
 @Component
 public class Config {
 
-    public static Boolean isWork = true;
+//    public static Boolean isWork = true;
     private static final String BOT_TOKEN = "6201461209:AAFbCcYZhQgK_aX0n7CfQhUEOmyBKnXidQM";
     private static final long NIK0NG = 567461715;
     private static final double THRESHOLD = 90.0;
@@ -29,9 +29,9 @@ public class Config {
         return USERS_TO_SEND_NOTIFICATION;
     }
 
-    public static void setIsWork(Boolean bool){
-        isWork = bool;
-    }
+//    public static void setIsWork(Boolean bool){
+//        isWork = bool;
+//    }
 
 
 }

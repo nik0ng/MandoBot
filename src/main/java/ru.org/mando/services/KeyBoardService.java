@@ -12,5 +12,5 @@ public interface KeyBoardService {
 
     public KeyboardRow initKeyboardRow(List<KeyboardButton> keyboardButtonsRow);
 
-    public List<KeyboardButton> initKeyboardButtonsRow(List<CommandEnum> commandEnumList);
+    public List<KeyboardButton> initKeyboardButtonsRow(List<CommandEnum> commandEnumList, String additionalWord);
 }
