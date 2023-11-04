@@ -12,6 +12,12 @@ public class Path {
     private static final String FILESTORAGE = "/mnt/filestorage";
     private static final String BACKUP_FILESTORAGE = "/mnt/backup_filestorage";
 
+    private static final String MAIN_DISK_1TB = "/";
+
+
+    public static String getMainDisk1tb(){
+        return MAIN_DISK_1TB;
+    }
 
     public static String getBackBack(){
         return BACKBACK;

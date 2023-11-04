@@ -9,6 +9,7 @@ public enum CommandEnum implements EnumClass<String>{
     STORAGE_IN_BACK_BACK("BackBack"),
     FILESTORAGE("FileStorage"),
     BACKUP_FILESTORAGE("Backup_FileStorage"),
+    MAIN_DISK_1TB("main disk poseydon on 1TB"),
     ALL_STORAGE("\uD83D\uDD4B ALL"),
     WORK_CRON("⏰ Cron work"),
     STOP_CRON("⛔️ STOP cron"),

@@ -12,6 +12,7 @@ public class Config {
     private static final long NIK0NG = 567461715;
     private static final long MARAT = 594333443;
     private static final List<Long> USERS_TO_SEND_NOTIFICATION = List.of(NIK0NG, MARAT);
+//    private static final List<Long> USERS_TO_SEND_NOTIFICATION = List.of(NIK0NG);
 
     private static final double THRESHOLD = 90.0;
     //test

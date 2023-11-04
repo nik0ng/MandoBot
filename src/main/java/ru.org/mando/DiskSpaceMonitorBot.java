@@ -37,7 +37,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     @Autowired
     KeyBoardService keyBoardService;
     public static final List<CommandEnum> CHECK_STORAGE_COMMAND = Arrays.asList(CommandEnum.STORAGE_IN_BACK_BACK, CommandEnum.FILESTORAGE,
-            CommandEnum.BACKUP_FILESTORAGE);
+            CommandEnum.BACKUP_FILESTORAGE, CommandEnum.MAIN_DISK_1TB);
 
     public static final List<CommandEnum> CRON_BUTTON_LIST = Arrays.asList(CommandEnum.START_CRON, CommandEnum.STOP_CRON, CommandEnum.BACK);
 
@@ -60,10 +60,13 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
                 } else if (CommandEnum.BACKUP_FILESTORAGE.getId().equals(command)) {
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
-                } else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
+                } else if(CommandEnum.MAIN_DISK_1TB.getId().equals(command)){
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getMainDisk1tb(), command);
+                }else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackBack(), command);
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getMainDisk1tb(), command);
                 } else if (CommandEnum.BACK.getId().equals(command)) {
                     sendCommandHints(update.getMessage().getChatId());
                 } else if (CommandEnum.WORK_CRON.getId().equals(command)) {
@@ -78,20 +81,26 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
                     actionMap.put(CommandEnum.FILESTORAGE, true);
                 } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Start").equals(command)) {
                     actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
-                } else if ((CommandEnum.ALL_STORAGE.getId() + " Start").equals(command)) {
+                } else if((CommandEnum.MAIN_DISK_1TB.getId() + " Start").equals(command)){
+                    actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
+                }else if ((CommandEnum.ALL_STORAGE.getId() + " Start").equals(command)) {
                     actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
                     actionMap.put(CommandEnum.FILESTORAGE, true);
                     actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
+                    actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
                 } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Stop").equals(command)) {
                     actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
                 } else if ((CommandEnum.FILESTORAGE.getId() + " Stop").equals(command)) {
                     actionMap.put(CommandEnum.FILESTORAGE, false);
                 } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Stop").equals(command)) {
                     actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
+                }  else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Stop").equals(command)) {
+                    actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
                 } else if ((CommandEnum.ALL_STORAGE.getId() + " Stop").equals(command)) {
                     actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
                     actionMap.put(CommandEnum.FILESTORAGE, false);
                     actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
+                    actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
                 } else if (("\uD83D\uDD19 back to cron work").equals(command)) {
                     initCronCommands(update.getMessage().getChatId());
                 }
@@ -107,28 +116,26 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     @Async
     @Scheduled(fixedRate = 60000) // Планирование выполнения каждую минуту
     public void checkBackBackDiskSpace() {
-        boolean detector = true;
-        detector = actionMap.get(CommandEnum.STORAGE_IN_BACK_BACK);
-        if (detector) {
-            String backback = makeMessageScheduler(Path.getBackBack());
-            if (backback != null) {
-                Config.getUsersToSendNotification().forEach(u->sendMessageToTelegram(backback, u));
+        for (CommandEnum commandEnum : CHECK_STORAGE_COMMAND) {
+            boolean detector = actionMap.get(commandEnum);
+            if (detector) {
+                String path = getPath(commandEnum);
+                String message = makeMessageScheduler(path);
+                if (message != null) {
+                    Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(message, u));
+                }
             }
         }
-        detector = actionMap.get(CommandEnum.FILESTORAGE);
-        if (detector) {
-            String fileStore = makeMessageScheduler(Path.getFilestorage());
-            if (fileStore != null) {
-                Config.getUsersToSendNotification().forEach(u->sendMessageToTelegram(fileStore, u));
-            }
-        }
-        detector = actionMap.get(CommandEnum.BACKUP_FILESTORAGE);
-        if (detector) {
-            String backupFileStore = makeMessageScheduler(Path.getBackupFilestorage());
-            if (backupFileStore != null) {
-                Config.getUsersToSendNotification().forEach(u->sendMessageToTelegram(backupFileStore, u));
-            }
-        }
+    }
+
+    private String getPath(CommandEnum commandEnum) {
+        return switch (commandEnum) {
+            case STORAGE_IN_BACK_BACK -> Path.getBackBack();
+            case FILESTORAGE -> Path.getFilestorage();
+            case BACKUP_FILESTORAGE -> Path.getBackupFilestorage();
+            case MAIN_DISK_1TB -> Path.getMainDisk1tb();
+            default -> throw new IllegalArgumentException("Unknown command: " + commandEnum);
+        };
     }
 
     private String makeMessageScheduler(String path) {
