@@ -1,5 +1,7 @@
 package ru.org.mando;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -18,9 +20,11 @@ import ru.org.mando.classes.CommandEnum;
 import ru.org.mando.classes.Config;
 import ru.org.mando.classes.Path;
 import ru.org.mando.services.CalculatorService;
+import ru.org.mando.services.CheckSiteService;
 import ru.org.mando.services.KeyBoardService;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -32,10 +36,15 @@ import java.util.stream.Collectors;
 @EnableAsync
 public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
+    private final Logger log = LoggerFactory.getLogger(getClass());
+
     @Autowired
-    CalculatorService calculatorService;
+    private CalculatorService calculatorService;
     @Autowired
-    KeyBoardService keyBoardService;
+    private KeyBoardService keyBoardService;
+    @Autowired
+    private CheckSiteService checkSiteService;
+
     public static final List<CommandEnum> CHECK_STORAGE_COMMAND = Arrays.asList(CommandEnum.STORAGE_IN_BACK_BACK, CommandEnum.FILESTORAGE,
             CommandEnum.BACKUP_FILESTORAGE, CommandEnum.MAIN_DISK_1TB);
 
@@ -51,7 +60,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String command = update.getMessage().getText();
-            if(Config.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
+            if (Config.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
                 if (CommandEnum.CHECK_STORAGES.getId().equals(command)) {
                     makeChoiceDiskCheck(update.getMessage().getChatId());
                 } else if (CommandEnum.STORAGE_IN_BACK_BACK.getId().equals(command)) {
@@ -60,9 +69,9 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
                 } else if (CommandEnum.BACKUP_FILESTORAGE.getId().equals(command)) {
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
-                } else if(CommandEnum.MAIN_DISK_1TB.getId().equals(command)){
+                } else if (CommandEnum.MAIN_DISK_1TB.getId().equals(command)) {
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getMainDisk1tb(), command);
-                }else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
+                } else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackBack(), command);
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
                     checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
@@ -81,9 +90,9 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
                     actionMap.put(CommandEnum.FILESTORAGE, true);
                 } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Start").equals(command)) {
                     actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
-                } else if((CommandEnum.MAIN_DISK_1TB.getId() + " Start").equals(command)){
+                } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Start").equals(command)) {
                     actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
-                }else if ((CommandEnum.ALL_STORAGE.getId() + " Start").equals(command)) {
+                } else if ((CommandEnum.ALL_STORAGE.getId() + " Start").equals(command)) {
                     actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
                     actionMap.put(CommandEnum.FILESTORAGE, true);
                     actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
@@ -94,7 +103,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
                     actionMap.put(CommandEnum.FILESTORAGE, false);
                 } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Stop").equals(command)) {
                     actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
-                }  else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Stop").equals(command)) {
+                } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Stop").equals(command)) {
                     actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
                 } else if ((CommandEnum.ALL_STORAGE.getId() + " Stop").equals(command)) {
                     actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
@@ -107,7 +116,6 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
             }
         }
     }
-
 
 
     /**
@@ -125,6 +133,14 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
                     Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(message, u));
                 }
             }
+        }
+        try {
+            String checkYoda = checkSiteService.check("https://yoda.sec2.ru/");
+            if (!checkYoda.equals("")) {
+                Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(checkYoda, u));
+            }
+        } catch (Exception e) {
+            log.error("Bad try check YODA work status! \n" + e.getMessage());
         }
     }
 
@@ -203,7 +219,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
         executeSendMessage(chatId, "Available commands:", replyKeyboardMarkup);
     }
 
-    private void makeChoiceDiskCheck(Long userId){
+    private void makeChoiceDiskCheck(Long userId) {
         ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
         List<CommandEnum> commandEnumList = new ArrayList<>(actionMap.keySet().stream().toList());
         List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(commandEnumList, null);

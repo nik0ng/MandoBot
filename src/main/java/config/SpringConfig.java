@@ -4,8 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import ru.org.mando.DiskSpaceMonitorBot;
-import ru.org.mando.services.CalculatorService;
 import ru.org.mando.services.CalculatorServiceBean;
+import ru.org.mando.services.CheckSiteServiceBean;
 
 @Configuration
 @ComponentScan("ru.org.mando")
@@ -19,4 +19,7 @@ public class SpringConfig{
     public CalculatorServiceBean calculatorService() {
         return new CalculatorServiceBean();
     }
+
+    @Bean
+    public CheckSiteServiceBean checkSiteService() {return new CheckSiteServiceBean();}
 }
