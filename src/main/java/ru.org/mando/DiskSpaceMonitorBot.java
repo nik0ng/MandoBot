@@ -1,5 +1,6 @@
 package ru.org.mando;
 
+import com.jcraft.jsch.JSchException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ import ru.org.mando.classes.Config;
 import ru.org.mando.classes.Path;
 import ru.org.mando.services.CalculatorService;
 import ru.org.mando.services.CheckSiteService;
+import ru.org.mando.services.InServerWorkerService;
 import ru.org.mando.services.KeyBoardService;
 
 import java.io.File;
@@ -44,6 +46,8 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     private KeyBoardService keyBoardService;
     @Autowired
     private CheckSiteService checkSiteService;
+    @Autowired
+    private InServerWorkerService serverWorkerService;
 
     public static final List<CommandEnum> CHECK_STORAGE_COMMAND = Arrays.asList(CommandEnum.STORAGE_IN_BACK_BACK, CommandEnum.FILESTORAGE,
             CommandEnum.BACKUP_FILESTORAGE, CommandEnum.MAIN_DISK_1TB);
@@ -112,6 +116,11 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
                     actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
                 } else if (("\uD83D\uDD19 back to cron work").equals(command)) {
                     initCronCommands(update.getMessage().getChatId());
+                }else if(CommandEnum.ADMINISTRATION.getId().equals(command)){
+                    initAdminCommands(update.getMessage().getChatId());
+                }else if(CommandEnum.KILL_YODA.getId().equals(command)){
+                    String msg = serverWorkerService.killService("kill_yoda.sh");
+                    Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
                 }
             }
         }
@@ -189,7 +198,6 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     }
 
     public void initCronCommands(Long chatId) {
-        // Создание клавиатуры с кнопкой для подсказок команд
         ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
         List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(CRON_BUTTON_LIST, null);
 
@@ -203,12 +211,25 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
     }
 
+    private void initAdminCommands(Long chatId){
+        ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
+        List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(Arrays.asList(CommandEnum.KILL_YODA, CommandEnum.BACK), null);
+        List<KeyboardRow> keyboardRows = new ArrayList<>();
+        KeyboardRow keyboardRow = keyBoardService.initKeyboardRow(keyboardButtonsRow);
+        keyboardRows.add(keyboardRow);
+
+        replyKeyboardMarkup.setKeyboard(keyboardRows);
+
+        executeSendMessage(chatId, "Choice ADMINISTRATION command", replyKeyboardMarkup);
+    }
+
     public void sendCommandHints(Long chatId) {
 
         // Создание клавиатуры с кнопкой для подсказок команд
         ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
 
-        List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(Arrays.asList(CommandEnum.CHECK_STORAGES, CommandEnum.WORK_CRON), null);
+        List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(Arrays.asList(CommandEnum.CHECK_STORAGES,
+                CommandEnum.WORK_CRON, CommandEnum.ADMINISTRATION), null);
 
         List<KeyboardRow> keyboardRows = new ArrayList<>();
         KeyboardRow keyboardRow = keyBoardService.initKeyboardRow(keyboardButtonsRow);

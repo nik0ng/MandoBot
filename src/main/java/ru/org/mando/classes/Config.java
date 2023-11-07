@@ -8,6 +8,11 @@ import java.util.List;
 public class Config {
 
     private static final String BOT_TOKEN = "6201461209:AAFbCcYZhQgK_aX0n7CfQhUEOmyBKnXidQM";
+    private static final String YODA_IP = "192.1.0.221";
+    private static final int YODA_PORT = 5465;
+    private static final String YODA_USERNAME = "yodalxc";
+    private static final String YODA_PATH = "/home/yodalxc/workscripts";
+
     // admins
     private static final long NIK0NG = 567461715;
     private static final long MARAT = 594333443;
@@ -31,5 +36,19 @@ public class Config {
     public static List<Long> getUsersToSendNotification(){
         return USERS_TO_SEND_NOTIFICATION;
     }
+
+    public static String getYodaIp(){
+        return YODA_IP;
+    }
+    public static Integer getYodaPort(){
+        return YODA_PORT;
+    }
+    public static String getYodaUsername(){
+        return YODA_USERNAME;
+    }
+    public static String getYodaPath(){
+        return YODA_PATH;
+    }
+
 
 }

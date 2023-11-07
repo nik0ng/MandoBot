@@ -14,7 +14,9 @@ public enum CommandEnum implements EnumClass<String>{
     WORK_CRON("⏰ Cron work"),
     STOP_CRON("⛔️ STOP cron"),
     START_CRON("✅ START cron"),
-    BACK("\uD83D\uDD19 BACK");
+    BACK("\uD83D\uDD19 BACK"),
+    ADMINISTRATION("\uD83D\uDC8A Administration"),
+    KILL_YODA("\uD83D\uDC94 kill YODA");
     private String id;
     CommandEnum(String value) {
         this.id = value;
