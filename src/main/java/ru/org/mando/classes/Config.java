@@ -8,6 +8,8 @@ import java.util.List;
 public class Config {
 
     private static final String BOT_TOKEN = "6201461209:AAFbCcYZhQgK_aX0n7CfQhUEOmyBKnXidQM";
+    //test
+//    private static final String BOT_TOKEN = "1785456855:AAEl16uUutXmMTSxM0tKaBJeH-tcvTlOqbY";
     private static final String YODA_IP = "192.1.0.221";
     private static final int YODA_PORT = 5465;
     private static final String YODA_USERNAME = "yodalxc";
@@ -17,6 +19,11 @@ public class Config {
     private static final long NIK0NG = 567461715;
     private static final long MARAT = 594333443;
     private static final List<Long> USERS_TO_SEND_NOTIFICATION = List.of(NIK0NG, MARAT);
+
+
+    //for test (yulia)
+//    private static final long MARAT = 460081308;
+
     //test
 //    private static final List<Long> USERS_TO_SEND_NOTIFICATION = List.of(NIK0NG);
 

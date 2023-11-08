@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
@@ -52,7 +53,7 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     public static final List<CommandEnum> CHECK_STORAGE_COMMAND = Arrays.asList(CommandEnum.STORAGE_IN_BACK_BACK, CommandEnum.FILESTORAGE,
             CommandEnum.BACKUP_FILESTORAGE, CommandEnum.MAIN_DISK_1TB);
 
-    public static final List<CommandEnum> CRON_BUTTON_LIST = Arrays.asList(CommandEnum.START_CRON, CommandEnum.STOP_CRON, CommandEnum.BACK);
+    public static final List<CommandEnum> CRON_BUTTON_LIST = Arrays.asList(CommandEnum.START_CRON, CommandEnum.STOP_CRON);
 
     public static Map<CommandEnum, Boolean> actionMap = CHECK_STORAGE_COMMAND.stream().collect(Collectors.toMap(command -> command, command -> true));
 
@@ -62,68 +63,91 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            String command = update.getMessage().getText();
-            if (Config.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
-                if (CommandEnum.CHECK_STORAGES.getId().equals(command)) {
-                    makeChoiceDiskCheck(update.getMessage().getChatId());
-                } else if (CommandEnum.STORAGE_IN_BACK_BACK.getId().equals(command)) {
-                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackBack(), command);
-                } else if (CommandEnum.FILESTORAGE.getId().equals(command)) {
-                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
-                } else if (CommandEnum.BACKUP_FILESTORAGE.getId().equals(command)) {
-                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
-                } else if (CommandEnum.MAIN_DISK_1TB.getId().equals(command)) {
-                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getMainDisk1tb(), command);
-                } else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
-                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackBack(), command);
-                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
-                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
-                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getMainDisk1tb(), command);
-                } else if (CommandEnum.BACK.getId().equals(command)) {
-                    sendCommandHints(update.getMessage().getChatId());
-                } else if (CommandEnum.WORK_CRON.getId().equals(command)) {
-                    initCronCommands(update.getMessage().getChatId());
-                } else if (CommandEnum.START_CRON.getId().equals(command)) {
-                    checkStopOrStartCronCommands(update.getMessage().getChatId(), "Start");
-                } else if (CommandEnum.STOP_CRON.getId().equals(command)) {
-                    checkStopOrStartCronCommands(update.getMessage().getChatId(), "Stop");
-                } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Start").equals(command)) {
-                    actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
-                } else if ((CommandEnum.FILESTORAGE.getId() + " Start").equals(command)) {
-                    actionMap.put(CommandEnum.FILESTORAGE, true);
-                } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Start").equals(command)) {
-                    actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
-                } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Start").equals(command)) {
-                    actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
-                } else if ((CommandEnum.ALL_STORAGE.getId() + " Start").equals(command)) {
-                    actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
-                    actionMap.put(CommandEnum.FILESTORAGE, true);
-                    actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
-                    actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
-                } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Stop").equals(command)) {
-                    actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
-                } else if ((CommandEnum.FILESTORAGE.getId() + " Stop").equals(command)) {
-                    actionMap.put(CommandEnum.FILESTORAGE, false);
-                } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Stop").equals(command)) {
-                    actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
-                } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Stop").equals(command)) {
-                    actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
-                } else if ((CommandEnum.ALL_STORAGE.getId() + " Stop").equals(command)) {
-                    actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
-                    actionMap.put(CommandEnum.FILESTORAGE, false);
-                    actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
-                    actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
-                } else if (("\uD83D\uDD19 back to cron work").equals(command)) {
-                    initCronCommands(update.getMessage().getChatId());
-                }else if(CommandEnum.ADMINISTRATION.getId().equals(command)){
-                    initAdminCommands(update.getMessage().getChatId());
-                }else if(CommandEnum.KILL_YODA.getId().equals(command)){
-                    String msg = serverWorkerService.killService("kill_yoda.sh");
-                    Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
+        if (Config.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
+            if (update.hasMessage() && update.getMessage().hasText()) {
+                String command = update.getMessage().getText();
+                if (Config.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
+                    if (CommandEnum.CHECK_STORAGES.getId().equals(command)) {
+                        makeChoiceDiskCheck(update.getMessage().getChatId());
+                    } else if (CommandEnum.STORAGE_IN_BACK_BACK.getId().equals(command)) {
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackBack(), command);
+                    } else if (CommandEnum.FILESTORAGE.getId().equals(command)) {
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
+                    } else if (CommandEnum.BACKUP_FILESTORAGE.getId().equals(command)) {
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
+                    } else if (CommandEnum.MAIN_DISK_1TB.getId().equals(command)) {
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getMainDisk1tb(), command);
+                    } else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackBack(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getMainDisk1tb(), command);
+                    } else if (CommandEnum.BACK.getId().equals(command)) {
+                        sendCommandHints(update.getMessage().getChatId());
+                    } else if (CommandEnum.WORK_CRON.getId().equals(command)) {
+                        initCronCommands(update.getMessage().getChatId());
+                    } else if (CommandEnum.START_CRON.getId().equals(command)) {
+                        checkStopOrStartCronCommands(update.getMessage().getChatId(), "Start");
+                    } else if (CommandEnum.STOP_CRON.getId().equals(command)) {
+                        checkStopOrStartCronCommands(update.getMessage().getChatId(), "Stop");
+                    } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Start").equals(command)) {
+                        actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону включена!", u));
+                    } else if ((CommandEnum.FILESTORAGE.getId() + " Start").equals(command)) {
+                        actionMap.put(CommandEnum.FILESTORAGE, true);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону включена!", u));
+                    } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Start").equals(command)) {
+                        actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону включена!", u));
+                    } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Start").equals(command)) {
+                        actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону включена!", u));
+                    } else if ((CommandEnum.ALL_STORAGE.getId() + " Start").equals(command)) {
+                        actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
+                        actionMap.put(CommandEnum.FILESTORAGE, true);
+                        actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
+                        actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону включены!", u));
+                    } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Stop").equals(command)) {
+                        actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону отключена!", u));
+                    } else if ((CommandEnum.FILESTORAGE.getId() + " Stop").equals(command)) {
+                        actionMap.put(CommandEnum.FILESTORAGE, false);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону отключена!", u));
+                    } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Stop").equals(command)) {
+                        actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону отключена!", u));
+                    } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Stop").equals(command)) {
+                        actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону отключена!", u));
+                    } else if ((CommandEnum.ALL_STORAGE.getId() + " Stop").equals(command)) {
+                        actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
+                        actionMap.put(CommandEnum.FILESTORAGE, false);
+                        actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
+                        actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону отключены!", u));
+                    } else if (("\uD83D\uDD19 back to cron work").equals(command)) {
+                        initCronCommands(update.getMessage().getChatId());
+                    } else if (CommandEnum.ADMINISTRATION.getId().equals(command)) {
+                        initAdminCommands(update.getMessage().getChatId());
+                    } else if (CommandEnum.KILL_YODA.getId().equals(command)) {
+                        String msg = serverWorkerService.killService("kill_yoda.sh");
+                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
+                    } else if (CommandEnum.CONFIGURE.getId().equals(command)) {
+                        sendCommandHints(update.getMessage().getChatId());
+                    }
                 }
             }
+        } else {
+            User user = update.getMessage().getFrom();
+
+            String msg = "\nВНИМАНИЕ! НЕСАНКЦИОНИРОВАННАЯ ПОПЫТКА ОТПРАВЛЯТЬ КОМАНДЫ! \nID пользователя: " + user.getId() + "\nФИО пользователя: " +
+                    (user.getLastName() != null ? (user.getLastName() + " ") : "")
+                    + user.getFirstName() + (user.getUserName() != null ? ("\nlogin: " + user.getUserName()) : "");
+            Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
+            log.error(msg);
         }
+
     }
 
 
@@ -200,10 +224,13 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     public void initCronCommands(Long chatId) {
         ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
         List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(CRON_BUTTON_LIST, null);
+        List<KeyboardButton> backKeyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(List.of(CommandEnum.BACK), null);
 
         List<KeyboardRow> keyboardRows = new ArrayList<>();
         KeyboardRow keyboardRow = keyBoardService.initKeyboardRow(keyboardButtonsRow);
+        KeyboardRow backKeyBoardRow = keyBoardService.initKeyboardRow(backKeyboardButtonsRow);
         keyboardRows.add(keyboardRow);
+        keyboardRows.add(backKeyBoardRow);
 
         replyKeyboardMarkup.setKeyboard(keyboardRows);
 
@@ -211,17 +238,25 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
     }
 
-    private void initAdminCommands(Long chatId){
+    private void initAdminCommands(Long chatId) {
         ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
-        List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(Arrays.asList(CommandEnum.KILL_YODA, CommandEnum.BACK), null);
+        List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(List.of(CommandEnum.KILL_YODA), null);
+
+        List<KeyboardButton> backKeyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(List.of(CommandEnum.BACK), null);
+
+
         List<KeyboardRow> keyboardRows = new ArrayList<>();
+
         KeyboardRow keyboardRow = keyBoardService.initKeyboardRow(keyboardButtonsRow);
+        KeyboardRow backKeyboardRow = keyBoardService.initKeyboardRow(backKeyboardButtonsRow);
         keyboardRows.add(keyboardRow);
+        keyboardRows.add(backKeyboardRow);
 
         replyKeyboardMarkup.setKeyboard(keyboardRows);
 
         executeSendMessage(chatId, "Choice ADMINISTRATION command", replyKeyboardMarkup);
     }
+
 
     public void sendCommandHints(Long chatId) {
 
@@ -229,11 +264,16 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
         ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
 
         List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(Arrays.asList(CommandEnum.CHECK_STORAGES,
-                CommandEnum.WORK_CRON, CommandEnum.ADMINISTRATION), null);
+                CommandEnum.WORK_CRON), null);
+
+        List<KeyboardButton> adminKeyboardButtonRow = keyBoardService.initKeyboardButtonsRow(List.of(CommandEnum.ADMINISTRATION), null);
 
         List<KeyboardRow> keyboardRows = new ArrayList<>();
         KeyboardRow keyboardRow = keyBoardService.initKeyboardRow(keyboardButtonsRow);
         keyboardRows.add(keyboardRow);
+
+        KeyboardRow adminKeyboardRow = keyBoardService.initKeyboardRow(adminKeyboardButtonRow);
+        keyboardRows.add(adminKeyboardRow);
 
         replyKeyboardMarkup.setKeyboard(keyboardRows);
 
@@ -279,15 +319,17 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     }
 
     private void executeSendMessage(Long chatId, String text, ReplyKeyboardMarkup replyKeyboardMarkup) {
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(String.valueOf(chatId));
-        sendMessage.setText(text);
+        if (text != null && !text.equals("")) {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(String.valueOf(chatId));
+            sendMessage.setText(text);
 
-        sendMessage.setReplyMarkup(replyKeyboardMarkup);
-        try {
-            execute(sendMessage);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
+            sendMessage.setReplyMarkup(replyKeyboardMarkup);
+            try {
+                execute(sendMessage);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
         }
     }
 

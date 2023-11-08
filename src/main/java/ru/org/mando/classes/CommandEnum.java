@@ -5,6 +5,8 @@ import javax.annotation.Nullable;
 
 public enum CommandEnum implements EnumClass<String>{
 
+    CONFIGURE("/configure"),
+    EMPTY(""),
     CHECK_STORAGES("\uD83D\uDCBE Check storages"),
     STORAGE_IN_BACK_BACK("BackBack"),
     FILESTORAGE("FileStorage"),
