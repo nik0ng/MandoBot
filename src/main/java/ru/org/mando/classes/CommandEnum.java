@@ -18,7 +18,8 @@ public enum CommandEnum implements EnumClass<String>{
     START_CRON("✅ START cron"),
     BACK("\uD83D\uDD19 BACK"),
     ADMINISTRATION("\uD83D\uDC8A Administration"),
-    KILL_YODA("\uD83D\uDC94 kill YODA");
+    KILL_YODA("\uD83D\uDC94 kill YODA"),
+    ANNOUNCEMENT("#объявление");
     private String id;
     CommandEnum(String value) {
         this.id = value;

@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -11,7 +12,7 @@ import java.util.List;
 @Configuration
 public class AdminConfig {
 
-    @Value("${bot.test.token}")
+    @Value("${bot.war.token}")
     private String botToken;
     @Value("${bot.name}")
     private String botName;
@@ -23,9 +24,10 @@ public class AdminConfig {
     @Value("${bot.nekrasov}")
     private Long nekrasov;
 
+
     public List<Long> getUsersToSendNotification(){
-        return Collections.singletonList(getNikanorov());
-//        return Arrays.asList(getNikanorov(), getMarat(), getNekrasov());
+//        return Collections.singletonList(getNikanorov());
+        return Arrays.asList(getNikanorov(), getMarat(), getNekrasov());
     }
 
 }

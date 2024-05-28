@@ -23,4 +23,13 @@ public class CalculatorServiceBean implements CalculatorService {
     public Boolean isEnoughSpace(Double usedPercentage) {
         return usedPercentage < maxCompletedSpaceDisk;
     }
+
+    @Override
+    public String checkLimitStorageAndMakeMessage(Double usedPercentage, String path) {
+        String result = null;
+        if (usedPercentage.isNaN() || !isEnoughSpace(usedPercentage)) {
+            result = String.format("‼️‼️‼️Warning‼️‼️‼️\n %s Disk space usage is %.2f%%", path, usedPercentage);
+        }
+        return result;
+    }
 }

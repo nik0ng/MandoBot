@@ -25,9 +25,8 @@ public class InServerWorkerServiceBean implements InServerWorkerService {
 
         } catch (InterruptedException | IOException e) {
             result += "Не получилось остановить YODA!";
-            throw new RuntimeException(e);
+            log.error(result + " по причине: \n" + e.getMessage());
         }
-
         return result;
     }
 }

@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class YodaConfig {
 
-    @Value("${yoda.test}")
+    @Value("${yoda.war}")
     private String yodaSite;
 
     @Value("${yoda.ip}")

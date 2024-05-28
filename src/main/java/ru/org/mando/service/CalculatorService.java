@@ -1,9 +1,10 @@
 package ru.org.mando.service;
 
-import org.springframework.stereotype.Service;
 public interface CalculatorService {
 
-    public Double countBusyStoragePercent(String path);
+    Double countBusyStoragePercent(String path);
 
-    public Boolean isEnoughSpace(Double usedPercentage);
+    Boolean isEnoughSpace(Double usedPercentage);
+
+    String checkLimitStorageAndMakeMessage(Double usedPercentage, String path);
 }

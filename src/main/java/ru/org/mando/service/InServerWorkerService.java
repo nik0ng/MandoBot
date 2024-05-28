@@ -1,9 +1,5 @@
 package ru.org.mando.service;
 
-import com.jcraft.jsch.JSchException;
-
-import java.io.IOException;
-
 public interface InServerWorkerService {
 
     /**

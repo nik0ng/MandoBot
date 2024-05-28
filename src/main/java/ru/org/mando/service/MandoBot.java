@@ -1,13 +1,10 @@
 package ru.org.mando.service;
 
+import ru.org.mando.config.CommandConfig;
 import ru.org.mando.config.YodaConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -23,11 +20,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
-@Component
-@EnableScheduling
 public class MandoBot extends TelegramLongPollingBot {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
@@ -37,8 +30,6 @@ public class MandoBot extends TelegramLongPollingBot {
     @Autowired
     private KeyBoardService keyBoardService;
     @Autowired
-    private CheckSiteService checkSiteService;
-    @Autowired
     private InServerWorkerService serverWorkerService;
 
     @Autowired
@@ -46,119 +37,96 @@ public class MandoBot extends TelegramLongPollingBot {
     @Autowired
     private YodaConfig yodaConfig;
 
-    public static final List<CommandEnum> CHECK_STORAGE_COMMAND = Arrays.asList(CommandEnum.STORAGE_IN_BACK_BACK, CommandEnum.FILESTORAGE,
-            CommandEnum.BACKUP_FILESTORAGE, CommandEnum.MAIN_DISK_1TB);
 
-    public static final List<CommandEnum> CRON_BUTTON_LIST = Arrays.asList(CommandEnum.START_CRON, CommandEnum.STOP_CRON);
 
-    public static Map<CommandEnum, Boolean> actionMap = CHECK_STORAGE_COMMAND.stream().collect(Collectors.toMap(command -> command, command -> true));
-
-    /**
-     * check storages by cron
-     */
-
-    @Scheduled(cron = "0/30 * * * * *", zone = "Europe/Moscow")
-    public void checkSite() {
-        try {
-            String checkYoda = checkSiteService.check(yodaConfig.getYodaSite());
-            if (!checkYoda.equals("")) {
-                adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(checkYoda, u));
-            }
-        } catch (Exception e) {
-            log.error("Bad try check YODA work status! \n" + e.getMessage());
-        }
+    public MandoBot() {
+        log.info("MandoBot instantiated");
     }
 
-    @Async
-    @Scheduled(cron = "0/30 * * * * *", zone = "Europe/Moscow")
-    public void checkDiskSpace() {
-        for (CommandEnum commandEnum : CHECK_STORAGE_COMMAND) {
-            boolean detector = actionMap.get(commandEnum);
-            if (detector) {
-                String path = getPath(commandEnum);
-                String message = makeMessageScheduler(path);
-                if (message != null) {
-                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(message, u));
-                }
-            }
-        }
-    }
+
 
     @Override
     public void onUpdateReceived(Update update) {
+
         if (adminConfig.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
             if (update.hasMessage() && update.getMessage().hasText()) {
                 String command = update.getMessage().getText();
-                if (adminConfig.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
-                    if (CommandEnum.CHECK_STORAGES.getId().equals(command)) {
-                        makeChoiceDiskCheck(update.getMessage().getChatId());
-                    } else if (CommandEnum.STORAGE_IN_BACK_BACK.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackback(), command);
-                    } else if (CommandEnum.FILESTORAGE.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getFilestorage(), command);
-                    } else if (CommandEnum.BACKUP_FILESTORAGE.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackupFileStorage(), command);
-                    } else if (CommandEnum.MAIN_DISK_1TB.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getMainDisk1TB(), command);
-                    } else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackback(), command);
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getFilestorage(), command);
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackupFileStorage(), command);
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getMainDisk1TB(), command);
-                    } else if (CommandEnum.BACK.getId().equals(command)) {
-                        sendCommandHints(update.getMessage().getChatId());
-                    } else if (CommandEnum.WORK_CRON.getId().equals(command)) {
-                        initCronCommands(update.getMessage().getChatId());
-                    } else if (CommandEnum.START_CRON.getId().equals(command)) {
-                        checkStopOrStartCronCommands(update.getMessage().getChatId(), "Start");
-                    } else if (CommandEnum.STOP_CRON.getId().equals(command)) {
-                        checkStopOrStartCronCommands(update.getMessage().getChatId(), "Stop");
-                    } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Start").equals(command)) {
-                        actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону включена!", u));
-                    } else if ((CommandEnum.FILESTORAGE.getId() + " Start").equals(command)) {
-                        actionMap.put(CommandEnum.FILESTORAGE, true);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону включена!", u));
-                    } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Start").equals(command)) {
-                        actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону включена!", u));
-                    } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Start").equals(command)) {
-                        actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону включена!", u));
-                    } else if ((CommandEnum.ALL_STORAGE.getId() + " Start").equals(command)) {
-                        actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
-                        actionMap.put(CommandEnum.FILESTORAGE, true);
-                        actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
-                        actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону включены!", u));
-                    } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Stop").equals(command)) {
-                        actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону отключена!", u));
-                    } else if ((CommandEnum.FILESTORAGE.getId() + " Stop").equals(command)) {
-                        actionMap.put(CommandEnum.FILESTORAGE, false);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону отключена!", u));
-                    } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Stop").equals(command)) {
-                        actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону отключена!", u));
-                    } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Stop").equals(command)) {
-                        actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону отключена!", u));
-                    } else if ((CommandEnum.ALL_STORAGE.getId() + " Stop").equals(command)) {
-                        actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
-                        actionMap.put(CommandEnum.FILESTORAGE, false);
-                        actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
-                        actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону отключены!", u));
-                    } else if (("\uD83D\uDD19 back to cron work").equals(command)) {
-                        initCronCommands(update.getMessage().getChatId());
-                    } else if (CommandEnum.ADMINISTRATION.getId().equals(command)) {
-                        initAdminCommands(update.getMessage().getChatId());
-                    } else if (CommandEnum.KILL_YODA.getId().equals(command)) {
-                        String msg = serverWorkerService.killService("kill_yoda.sh");
-                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
-                    } else if (CommandEnum.CONFIGURE.getId().equals(command)) {
-                        sendCommandHints(update.getMessage().getChatId());
+
+                if (adminConfig.getNikanorov().equals(update.getMessage().getChatId())) {
+                    if (command.toLowerCase().contains(CommandEnum.ANNOUNCEMENT.getId())) {
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(command, u));
                     }
+                }
+
+                if (CommandEnum.CHECK_STORAGES.getId().equals(command)) {
+                    makeChoiceDiskCheck(update.getMessage().getChatId());
+                } else if (CommandEnum.STORAGE_IN_BACK_BACK.getId().equals(command)) {
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackback(), command);
+                } else if (CommandEnum.FILESTORAGE.getId().equals(command)) {
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getFilestorage(), command);
+                } else if (CommandEnum.BACKUP_FILESTORAGE.getId().equals(command)) {
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackupFileStorage(), command);
+                } else if (CommandEnum.MAIN_DISK_1TB.getId().equals(command)) {
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getMainDisk1TB(), command);
+                } else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackback(), command);
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getFilestorage(), command);
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackupFileStorage(), command);
+                    checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getMainDisk1TB(), command);
+                } else if (CommandEnum.BACK.getId().equals(command)) {
+                    sendCommandHints(update.getMessage().getChatId());
+                } else if (CommandEnum.WORK_CRON.getId().equals(command)) {
+                    initCronCommands(update.getMessage().getChatId());
+                } else if (CommandEnum.START_CRON.getId().equals(command)) {
+                    checkStopOrStartCronCommands(update.getMessage().getChatId(), "Start");
+                } else if (CommandEnum.STOP_CRON.getId().equals(command)) {
+                    checkStopOrStartCronCommands(update.getMessage().getChatId(), "Stop");
+                } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Start").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону включена!", u));
+                } else if ((CommandEnum.FILESTORAGE.getId() + " Start").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.FILESTORAGE, true);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону включена!", u));
+                } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Start").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.BACKUP_FILESTORAGE, true);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону включена!", u));
+                } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Start").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.MAIN_DISK_1TB, true);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону включена!", u));
+                } else if ((CommandEnum.ALL_STORAGE.getId() + " Start").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
+                    CommandConfig.ACTION_MAP.put(CommandEnum.FILESTORAGE, true);
+                    CommandConfig.ACTION_MAP.put(CommandEnum.BACKUP_FILESTORAGE, true);
+                    CommandConfig.ACTION_MAP.put(CommandEnum.MAIN_DISK_1TB, true);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону включены!", u));
+                } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Stop").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону отключена!", u));
+                } else if ((CommandEnum.FILESTORAGE.getId() + " Stop").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.FILESTORAGE, false);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону отключена!", u));
+                } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Stop").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.BACKUP_FILESTORAGE, false);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону отключена!", u));
+                } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Stop").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.MAIN_DISK_1TB, false);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону отключена!", u));
+                } else if ((CommandEnum.ALL_STORAGE.getId() + " Stop").equals(command)) {
+                    CommandConfig.ACTION_MAP.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
+                    CommandConfig.ACTION_MAP.put(CommandEnum.FILESTORAGE, false);
+                    CommandConfig.ACTION_MAP.put(CommandEnum.BACKUP_FILESTORAGE, false);
+                    CommandConfig.ACTION_MAP.put(CommandEnum.MAIN_DISK_1TB, false);
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону отключены!", u));
+                } else if (("\uD83D\uDD19 back to cron work").equals(command)) {
+                    initCronCommands(update.getMessage().getChatId());
+                } else if (CommandEnum.ADMINISTRATION.getId().equals(command)) {
+                    initAdminCommands(update.getMessage().getChatId());
+                } else if (CommandEnum.KILL_YODA.getId().equals(command)) {
+                    String msg = serverWorkerService.killService("kill_yoda.sh");
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
+                    log.info(msg);
+                } else if (CommandEnum.CONFIGURE.getId().equals(command)) {
+                    sendCommandHints(update.getMessage().getChatId());
                 }
             }
         } else {
@@ -173,31 +141,6 @@ public class MandoBot extends TelegramLongPollingBot {
 
     }
 
-    private String getPath(CommandEnum commandEnum) {
-        return switch (commandEnum) {
-            case STORAGE_IN_BACK_BACK -> yodaConfig.getBackback();
-            case FILESTORAGE -> yodaConfig.getFilestorage();
-            case BACKUP_FILESTORAGE -> yodaConfig.getBackupFileStorage();
-            case MAIN_DISK_1TB -> yodaConfig.getMainDisk1TB();
-            default -> throw new IllegalArgumentException("Unknown command: " + commandEnum);
-        };
-    }
-
-    private String makeMessageScheduler(String path) {
-        double usedPercentage = calculatorService.countBusyStoragePercent(path);
-        return checkLimitStorageAndMakeMessage(usedPercentage, path);
-    }
-
-
-    private String checkLimitStorageAndMakeMessage(Double usedPercentage, String path) {
-        String result = null;
-        if (usedPercentage.isNaN() || !calculatorService.isEnoughSpace(usedPercentage)) {
-            result = String.format("‼️‼️‼️Warning‼️‼️‼️\n %s Disk space usage is %.2f%%", path, usedPercentage);
-        }
-        return result;
-    }
-
-
     public void checkDiskSpaceAndSendBack(Long chatId, String path, String command) {
         File file = new File(path);
 
@@ -208,7 +151,7 @@ public class MandoBot extends TelegramLongPollingBot {
 
         sendMessageToTelegram(message, chatId);
         String result = null;
-        result = checkLimitStorageAndMakeMessage(usedPercentage, path);
+        result = calculatorService.checkLimitStorageAndMakeMessage(usedPercentage, path);
         if (result != null) {
             sendMessageToTelegram(result, chatId);
         } else {
@@ -219,7 +162,7 @@ public class MandoBot extends TelegramLongPollingBot {
 
     public void initCronCommands(Long chatId) {
         ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
-        List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(CRON_BUTTON_LIST, null);
+        List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(CommandConfig.CRON_BUTTON_LIST, null);
         List<KeyboardButton> backKeyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(List.of(CommandEnum.BACK), null);
 
         List<KeyboardRow> keyboardRows = new ArrayList<>();
@@ -278,7 +221,7 @@ public class MandoBot extends TelegramLongPollingBot {
 
     private void makeChoiceDiskCheck(Long userId) {
         ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
-        List<CommandEnum> commandEnumList = new ArrayList<>(actionMap.keySet().stream().toList());
+        List<CommandEnum> commandEnumList = new ArrayList<>(CommandConfig.ACTION_MAP.keySet().stream().toList());
         List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(commandEnumList, null);
         List<KeyboardButton> keyboardOtherButtonsRow = keyBoardService.initKeyboardButtonsRow(Arrays.asList(CommandEnum.ALL_STORAGE, CommandEnum.BACK),
                 null);
@@ -297,7 +240,7 @@ public class MandoBot extends TelegramLongPollingBot {
     public void checkStopOrStartCronCommands(Long chatId, String additionalWord) {
         // Создание клавиатуры с кнопкой для подсказок команд
         ReplyKeyboardMarkup replyKeyboardMarkup = keyBoardService.initReplyKeyboardMarkup();
-        List<CommandEnum> commandEnumList = new ArrayList<>(actionMap.keySet().stream().toList());
+        List<CommandEnum> commandEnumList = new ArrayList<>(CommandConfig.ACTION_MAP.keySet().stream().toList());
         List<KeyboardButton> keyboardButtonsRow = keyBoardService.initKeyboardButtonsRow(commandEnumList, additionalWord);
         List<KeyboardButton> keyboardOtherButtonsRow = keyBoardService.initKeyboardButtonsRow(Arrays.asList(CommandEnum.ALL_STORAGE, CommandEnum.BACK),
                 additionalWord);

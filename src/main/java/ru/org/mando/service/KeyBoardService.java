@@ -8,9 +8,9 @@ import ru.org.mando.classes.CommandEnum;
 import java.util.List;
 
 public interface KeyBoardService {
-    public ReplyKeyboardMarkup initReplyKeyboardMarkup();
+    ReplyKeyboardMarkup initReplyKeyboardMarkup();
 
-    public KeyboardRow initKeyboardRow(List<KeyboardButton> keyboardButtonsRow);
+    KeyboardRow initKeyboardRow(List<KeyboardButton> keyboardButtonsRow);
 
-    public List<KeyboardButton> initKeyboardButtonsRow(List<CommandEnum> commandEnumList, String additionalWord);
+    List<KeyboardButton> initKeyboardButtonsRow(List<CommandEnum> commandEnumList, String additionalWord);
 }
