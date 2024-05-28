@@ -1,11 +1,11 @@
-package ru.org.mando.services;
+package ru.org.mando.service.impl;
 
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import ru.org.mando.classes.CommandEnum;
-import ru.org.mando.classes.Path;
+import ru.org.mando.service.KeyBoardService;
 
 import java.util.ArrayList;
 import java.util.List;

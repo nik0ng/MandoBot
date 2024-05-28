@@ -1,4 +1,4 @@
-package ru.org.mando.services;
+package ru.org.mando.service;
 
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;

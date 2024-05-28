@@ -1,0 +1,26 @@
+bot:
+  war:
+    token: '6201461209:AAFbCcYZhQgK_aX0n7CfQhUEOmyBKnXidQM'
+  test:
+    token: '1785456855:AAFdHHZ0e5shctNNlx2jZsbO9zNDpMMOyBg'
+  name: 'MandoBot'
+  nikanorov: '567461715'
+  marat: '594333443'
+  nekrasov: '32942306'
+
+yoda:
+  ip: '192.1.0.221'
+  port: 5465
+  userName: 'yodalxc'
+  path:
+    bashScripts: '/home/yodalxc/workscripts'
+    backback: '/mnt/backback'
+    filestorage: '/mnt/filestorage'
+    backupFileStorage: '/mnt/backup_filestorage'
+    mainDisk1TB: '/'
+  maxCompletedSpaceDisk: 90
+  war: 'https://yoda.sec2.ru/'
+  test: 'https://yodatest24.sec2.ru/'
+
+server:
+   port: 8097

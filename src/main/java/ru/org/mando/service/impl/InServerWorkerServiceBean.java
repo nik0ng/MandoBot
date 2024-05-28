@@ -1,16 +1,11 @@
-package ru.org.mando.services;
-
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.ChannelExec;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.Session;
+package ru.org.mando.service.impl;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import ru.org.mando.service.InServerWorkerService;
 
 
 @Service

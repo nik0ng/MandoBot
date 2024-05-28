@@ -1,4 +1,4 @@
-package ru.org.mando.services;
+package ru.org.mando.service;
 
 import org.springframework.stereotype.Service;
 public interface CalculatorService {

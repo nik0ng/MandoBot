@@ -1,4 +1,4 @@
-package ru.org.mando.services;
+package ru.org.mando.service;
 
 import java.io.IOException;
 import java.net.MalformedURLException;

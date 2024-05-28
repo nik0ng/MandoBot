@@ -1,15 +1,13 @@
-package ru.org.mando;
+package ru.org.mando.service;
 
-import com.jcraft.jsch.JSchException;
+import ru.org.mando.config.YodaConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -19,25 +17,18 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.org.mando.classes.CommandEnum;
-import ru.org.mando.classes.Config;
-import ru.org.mando.classes.Path;
-import ru.org.mando.services.CalculatorService;
-import ru.org.mando.services.CheckSiteService;
-import ru.org.mando.services.InServerWorkerService;
-import ru.org.mando.services.KeyBoardService;
+import ru.org.mando.config.AdminConfig;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@SpringBootApplication
+@Component
 @EnableScheduling
-@EnableAsync
-public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
+public class MandoBot extends TelegramLongPollingBot {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -50,6 +41,11 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
     @Autowired
     private InServerWorkerService serverWorkerService;
 
+    @Autowired
+    private AdminConfig adminConfig;
+    @Autowired
+    private YodaConfig yodaConfig;
+
     public static final List<CommandEnum> CHECK_STORAGE_COMMAND = Arrays.asList(CommandEnum.STORAGE_IN_BACK_BACK, CommandEnum.FILESTORAGE,
             CommandEnum.BACKUP_FILESTORAGE, CommandEnum.MAIN_DISK_1TB);
 
@@ -57,31 +53,58 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
     public static Map<CommandEnum, Boolean> actionMap = CHECK_STORAGE_COMMAND.stream().collect(Collectors.toMap(command -> command, command -> true));
 
-    public static void main(String[] args) {
-        SpringApplication.run(DiskSpaceMonitorBot.class, args);
+    /**
+     * check storages by cron
+     */
+
+    @Scheduled(cron = "0/30 * * * * *", zone = "Europe/Moscow")
+    public void checkSite() {
+        try {
+            String checkYoda = checkSiteService.check(yodaConfig.getYodaSite());
+            if (!checkYoda.equals("")) {
+                adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(checkYoda, u));
+            }
+        } catch (Exception e) {
+            log.error("Bad try check YODA work status! \n" + e.getMessage());
+        }
+    }
+
+    @Async
+    @Scheduled(cron = "0/30 * * * * *", zone = "Europe/Moscow")
+    public void checkDiskSpace() {
+        for (CommandEnum commandEnum : CHECK_STORAGE_COMMAND) {
+            boolean detector = actionMap.get(commandEnum);
+            if (detector) {
+                String path = getPath(commandEnum);
+                String message = makeMessageScheduler(path);
+                if (message != null) {
+                    adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(message, u));
+                }
+            }
+        }
     }
 
     @Override
     public void onUpdateReceived(Update update) {
-        if (Config.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
+        if (adminConfig.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
             if (update.hasMessage() && update.getMessage().hasText()) {
                 String command = update.getMessage().getText();
-                if (Config.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
+                if (adminConfig.getUsersToSendNotification().contains(update.getMessage().getChatId())) {
                     if (CommandEnum.CHECK_STORAGES.getId().equals(command)) {
                         makeChoiceDiskCheck(update.getMessage().getChatId());
                     } else if (CommandEnum.STORAGE_IN_BACK_BACK.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackBack(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackback(), command);
                     } else if (CommandEnum.FILESTORAGE.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getFilestorage(), command);
                     } else if (CommandEnum.BACKUP_FILESTORAGE.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackupFileStorage(), command);
                     } else if (CommandEnum.MAIN_DISK_1TB.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getMainDisk1tb(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getMainDisk1TB(), command);
                     } else if (CommandEnum.ALL_STORAGE.getId().equals(command)) {
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackBack(), command);
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getFilestorage(), command);
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getBackupFilestorage(), command);
-                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), Path.getMainDisk1tb(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackback(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getFilestorage(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getBackupFileStorage(), command);
+                        checkDiskSpaceAndSendBack(update.getMessage().getChatId(), yodaConfig.getMainDisk1TB(), command);
                     } else if (CommandEnum.BACK.getId().equals(command)) {
                         sendCommandHints(update.getMessage().getChatId());
                     } else if (CommandEnum.WORK_CRON.getId().equals(command)) {
@@ -92,47 +115,47 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
                         checkStopOrStartCronCommands(update.getMessage().getChatId(), "Stop");
                     } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Start").equals(command)) {
                         actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону включена!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону включена!", u));
                     } else if ((CommandEnum.FILESTORAGE.getId() + " Start").equals(command)) {
                         actionMap.put(CommandEnum.FILESTORAGE, true);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону включена!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону включена!", u));
                     } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Start").equals(command)) {
                         actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону включена!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону включена!", u));
                     } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Start").equals(command)) {
                         actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону включена!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону включена!", u));
                     } else if ((CommandEnum.ALL_STORAGE.getId() + " Start").equals(command)) {
                         actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, true);
                         actionMap.put(CommandEnum.FILESTORAGE, true);
                         actionMap.put(CommandEnum.BACKUP_FILESTORAGE, true);
                         actionMap.put(CommandEnum.MAIN_DISK_1TB, true);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону включены!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону включены!", u));
                     } else if ((CommandEnum.STORAGE_IN_BACK_BACK.getId() + " Stop").equals(command)) {
                         actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону отключена!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка BackBack по крону отключена!", u));
                     } else if ((CommandEnum.FILESTORAGE.getId() + " Stop").equals(command)) {
                         actionMap.put(CommandEnum.FILESTORAGE, false);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону отключена!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка FileStorage по крону отключена!", u));
                     } else if ((CommandEnum.BACKUP_FILESTORAGE.getId() + " Stop").equals(command)) {
                         actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону отключена!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка Backup_FileStorage по крону отключена!", u));
                     } else if ((CommandEnum.MAIN_DISK_1TB.getId() + " Stop").equals(command)) {
                         actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону отключена!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Проверка основного диска Poseydon на 1 ТБ по крону отключена!", u));
                     } else if ((CommandEnum.ALL_STORAGE.getId() + " Stop").equals(command)) {
                         actionMap.put(CommandEnum.STORAGE_IN_BACK_BACK, false);
                         actionMap.put(CommandEnum.FILESTORAGE, false);
                         actionMap.put(CommandEnum.BACKUP_FILESTORAGE, false);
                         actionMap.put(CommandEnum.MAIN_DISK_1TB, false);
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону отключены!", u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram("Все проверки дисков по крону отключены!", u));
                     } else if (("\uD83D\uDD19 back to cron work").equals(command)) {
                         initCronCommands(update.getMessage().getChatId());
                     } else if (CommandEnum.ADMINISTRATION.getId().equals(command)) {
                         initAdminCommands(update.getMessage().getChatId());
                     } else if (CommandEnum.KILL_YODA.getId().equals(command)) {
                         String msg = serverWorkerService.killService("kill_yoda.sh");
-                        Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
+                        adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
                     } else if (CommandEnum.CONFIGURE.getId().equals(command)) {
                         sendCommandHints(update.getMessage().getChatId());
                     }
@@ -144,45 +167,18 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
             String msg = "\nВНИМАНИЕ! НЕСАНКЦИОНИРОВАННАЯ ПОПЫТКА ОТПРАВЛЯТЬ КОМАНДЫ! \nID пользователя: " + user.getId() + "\nФИО пользователя: " +
                     (user.getLastName() != null ? (user.getLastName() + " ") : "")
                     + user.getFirstName() + (user.getUserName() != null ? ("\nlogin: " + user.getUserName()) : "");
-            Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
+            adminConfig.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(msg, u));
             log.error(msg);
         }
 
     }
 
-
-    /**
-     * check storages by cron
-     */
-    @Async
-    @Scheduled(fixedRate = 60000) // Планирование выполнения каждую минуту
-    public void checkBackBackDiskSpace() {
-        for (CommandEnum commandEnum : CHECK_STORAGE_COMMAND) {
-            boolean detector = actionMap.get(commandEnum);
-            if (detector) {
-                String path = getPath(commandEnum);
-                String message = makeMessageScheduler(path);
-                if (message != null) {
-                    Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(message, u));
-                }
-            }
-        }
-        try {
-            String checkYoda = checkSiteService.check("https://yoda.sec2.ru/");
-            if (!checkYoda.equals("")) {
-                Config.getUsersToSendNotification().forEach(u -> sendMessageToTelegram(checkYoda, u));
-            }
-        } catch (Exception e) {
-            log.error("Bad try check YODA work status! \n" + e.getMessage());
-        }
-    }
-
     private String getPath(CommandEnum commandEnum) {
         return switch (commandEnum) {
-            case STORAGE_IN_BACK_BACK -> Path.getBackBack();
-            case FILESTORAGE -> Path.getFilestorage();
-            case BACKUP_FILESTORAGE -> Path.getBackupFilestorage();
-            case MAIN_DISK_1TB -> Path.getMainDisk1tb();
+            case STORAGE_IN_BACK_BACK -> yodaConfig.getBackback();
+            case FILESTORAGE -> yodaConfig.getFilestorage();
+            case BACKUP_FILESTORAGE -> yodaConfig.getBackupFileStorage();
+            case MAIN_DISK_1TB -> yodaConfig.getMainDisk1TB();
             default -> throw new IllegalArgumentException("Unknown command: " + commandEnum);
         };
     }
@@ -350,11 +346,11 @@ public class DiskSpaceMonitorBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return "YOUR_BOT_USERNAME";
+        return adminConfig.getBotName();
     }
 
     @Override
     public String getBotToken() {
-        return Config.getBotToken();
+        return adminConfig.getBotToken();
     }
 }

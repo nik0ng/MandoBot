@@ -1,14 +1,16 @@
-package ru.org.mando.services;
+package ru.org.mando.service.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import ru.org.mando.service.CheckSiteService;
+
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 @Service
-public class CheckSiteServiceBean implements CheckSiteService{
+public class CheckSiteServiceBean implements CheckSiteService {
     private final Logger log = LoggerFactory.getLogger(getClass());
     private static final long MAX_REQUEST_TIME_MS = 5000; // 5 секунд
 
